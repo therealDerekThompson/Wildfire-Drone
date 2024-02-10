@@ -1,4 +1,4 @@
-#include <opencv2/opencv.hpp>
+/*#include <opencv2/opencv.hpp>
 #include <iostream>
 
 using namespace cv;
@@ -57,10 +57,11 @@ int drawMetricsOnScreen(Mat image, int blobCount, vector<int> xBlobCord, int fps
     return 0;
 }
 
+
 int main(int argc, char** argv)
 {
     //Create Mat frame
-    Mat frame;
+    Mat frame, frame1, dst;
 
     //Matrices
     Mat kernel = (Mat_<char>(3, 3) <<
@@ -102,12 +103,15 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    for (;;)
+
     //Alternative way of showing video
     Mat grey, sobelx;
     for (;;)
     {
         // wait for a new frame from camera and store it into 'frame'
         video.read(frame);
+        
         // check if we succeeded
         if (frame.empty()) {
             cerr << "ERROR! blank frame grabbed\n";
@@ -117,26 +121,22 @@ int main(int argc, char** argv)
         cvtColor(frame, grey, COLOR_BGR2GRAY);
         Sobel(grey, frame, CV_32F, 1, 0);
 
-        // show live and wait for a key with timeout long enough to show images
-        imshow("Live", frame);
+        imshow("sobel", frame);
         if (waitKey(5) >= 0)
             break;
     }
 
     for (;;)
     {
-        // wait for a new frame from camera and store it into 'frame'
-        video.read(frame);
-        // check if we succeeded
+        video.read(frame1);
+
         if (frame.empty()) {
             cerr << "ERROR! blank frame grabbed\n";
             break;
         }
 
-        filter2D(frame, frame, frame.depth(), kernel);
-
-        // show live and wait for a key with timeout long enough to show images
-        imshow("Live", frame);
+        filter2D(frame1, frame1, frame1.depth(), kernel);
+        imshow("Filter1", frame1);
         if (waitKey(5) >= 0)
             break;
     }
@@ -252,7 +252,7 @@ int main(int argc, char** argv)
 
         if (waitKey(1) == 27) break;
 
-    }*/
+    }
 
     return 0;
-}
+}*/
