@@ -9,9 +9,11 @@ Point calculateFutureLocation(Mat state);
 void drawMetricsOnScreen(Mat image, vector<KeyPoint> keyPointsFire, double fps);
 
 int main() {
-    Mat frame, dst, state, prediction;
+    Mat frame, dst, prediction, state;
     bool found = false;
-    VideoCapture video("C:\\Users\\admin\\Documents\\University\\FALL 2023\\Senior Capstone\\Media\\Video\\Demo3.mp4");
+    VideoCapture video("C:\\Users\\admin\\Documents\\University\\FALL 2023\\Senior Capstone\\Media\\Video\\Demo2.mp4");
+
+    namedWindow("Display", WINDOW_NORMAL);
 
     // Check if the camera opened successfully
     if (!video.isOpened()) {
@@ -24,21 +26,28 @@ int main() {
     // Create SimpleBlobDetector Parameter Object
     SimpleBlobDetector::Params params;
     // Specify SimpleBlobDetector parameters
-    
+    params.filterByArea = true;
+    params.minArea = 30;
     params.filterByCircularity = false;
     params.minCircularity = (float)0.1;
     params.maxCircularity = (float)1.0;
     params.filterByColor = false;
     params.filterByConvexity = false;
     params.minConvexity = (float)0.1;
-    params.minThreshold = 247;
+    params.minThreshold = 190;
     params.maxThreshold = 255;
-    params.thresholdStep = 3;
+    params.thresholdStep = 13;
     //Create SimpleBlobDetector Object according to specified parameters
     Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params);
 
     // vector<KeyPoint> keypoints;
+    KeyPoint dummy(1, 1, 1, 1);
     vector<KeyPoint> keyPointsFire;
+    keyPointsFire.push_back(dummy);
+    state = (Mat_<float>(4, 1) <<   1,
+                                    1,
+                                    1,
+                                    1);
 
     //Create Kalman Filter
     KalmanFilter kalmanFilter(4, 2);
@@ -55,7 +64,7 @@ int main() {
     kalmanFilter.processNoiseCov = (Mat_<float>(4, 4) << 1, 0, 1, 0,
                                                          0, 1, 0, 1,
                                                          0, 0, 1, 0,
-                                                         0, 0, 0, 1) * 50;
+                                                         0, 0, 0, 1) * 25;
 
 
     //Get center of video frame for initial state
@@ -70,6 +79,11 @@ int main() {
     //Initial observation 
     kalmanFilter.temp1 = (Mat_<float>(2, 1) << 0,
                                                0);
+
+    kalmanFilter.temp2 = (Mat_<float>(2, 1) << 0,
+                                               0);
+
+    //Create Initial Values for KeyPointsFire so we don't have to change values at end of loop
 
     double ticks = 0;
     double execution_ticks = 0;
@@ -94,21 +108,24 @@ int main() {
 
         int n = keyPointsFire.size();
 
+        Mat prediction = kalmanFilter.predict();
+        Point predictedPoint(prediction.at<float>(0), prediction.at<float>(1));
         
 
-        for (int i = 0; i < keyPointsFire.size(); i++) {
+        if (n > 0) {
             //Draw Fire location
             circle(frame, keyPointsFire[n - 1].pt, keyPointsFire[n - 1].size, Scalar(0, 0, 255), 7);
 
             //Project the state ahead
-            Mat prediction = kalmanFilter.predict();
-            Point predictedPoint(prediction.at<float>(0), prediction.at<float>(1));
-            circle(frame, predictedPoint, 4, Scalar(255, 0, 255), 7);
-            double prev_execution_ticks = (double)getTickCount();
-            double tdT = (execution_ticks - prev_execution_ticks) / getTickFrequency(); //seconds
-            cout << "Time for one loop: " << tdT << " seconds" << endl;
+            
+            circle(frame, predictedPoint, 15, Scalar(0, 255, 0), 7);
+
+            //Store location in case of blank
+            kalmanFilter.temp2 = (Mat_<float>(2, 1) << keyPointsFire[n - 1].pt.x,
+                                                       keyPointsFire[n - 1].pt.y);;
 
             //Reset matrices for new batch of keypoints
+            
             if (!found) {
                 // First detection
                 kalmanFilter.statePre.at<float>(0) = keyPointsFire[0].pt.x;
@@ -143,12 +160,28 @@ int main() {
 
             Point correctedPoint(state.at<float>(0), state.at<float>(1));
 
-            line(frame, predictedPoint, correctedPoint, Scalar(255, 255, 255), 4);
-            arrowedLine(frame, keyPointsFire[n - 1].pt, correctedPoint, Scalar(0, 0, 0), 4);
+            line(frame, predictedPoint, correctedPoint, Scalar(0, 0, 0), 4);
 
         }
-        
-        found = false;
+        ;
+        kalmanFilter.statePre.at<float>(0) = keyPointsFire[0].pt.x;
+        kalmanFilter.statePre.at<float>(1) = keyPointsFire[0].pt.y;
+        kalmanFilter.statePre.at<float>(2) = 0;
+        kalmanFilter.statePre.at<float>(3) = 0;
+        setIdentity(kalmanFilter.measurementMatrix);
+        setIdentity(kalmanFilter.processNoiseCov, Scalar::all(1e-4));
+        setIdentity(kalmanFilter.measurementNoiseCov, Scalar::all(1e-1));
+        setIdentity(kalmanFilter.errorCovPost, Scalar::all(1));
+
+        cout << "Prediction: " << endl << state << endl;
+
+        //Project the state ahead
+
+        circle(frame, predictedPoint, 30, Scalar(255, 0, 0), 7);
+
+        Point correctedPoint(state.at<float>(0), state.at<float>(1));
+
+        line(frame, predictedPoint, correctedPoint, Scalar(0, 0, 0), 4);
         
         kalmanFilter.statePre = kalmanFilter.statePost;
         
@@ -156,7 +189,7 @@ int main() {
 
         
 
-        imshow("Thresholding", frame);
+        imshow("Display", frame);
         if (waitKey(5) >= 0)
             break;
     }
